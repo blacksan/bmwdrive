@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -45,9 +45,21 @@ jobs:
       - name: Run unit tests
         run: gradle :app:testDebugUnitTest --no-daemon --no-configuration-cache
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: bmwdrive-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Publish APK to 'latest' release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk bmwdrive-debug.apk
+          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create latest bmwdrive-debug.apk \
+            --title "BMWDrive debug (latest)" \
+            --notes "Debug APK built from ${{ github.sha }}. On the phone, open this page, download the .apk and allow installs from unknown sources." \
+            --prerelease
