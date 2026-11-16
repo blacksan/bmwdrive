@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Common USB-to-Ethernet controller classes/vendors used by ENET USB cables
+     and USB-C Ethernet adapters. Vendor IDs: 0x0b95 ASIX, 0x0bda Realtek. -->
+<resources>
+    <!-- CDC (Communications / Ethernet Control Model) -->
+    <usb-device class="2" />
+    <!-- Vendor-specific controllers (ASIX AX88179, Realtek RTL815x, etc.) -->
+    <usb-device vendor-id="2965" />
+    <usb-device vendor-id="3034" />
+</resources>

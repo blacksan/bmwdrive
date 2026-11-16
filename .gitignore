@@ -1,0 +1,20 @@
+# Android / Gradle
+.gradle/
+build/
+app/build/
+local.properties
+*.iml
+.idea/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Keystores & secrets — never commit
+*.jks
+*.keystore
+keystore.properties
+
+# Car-identifying data (VIN, keys, provisioning, extracted SDK) — never commit
+oap-sdk/
+reference/someip-interfaces.json
+*.vin
