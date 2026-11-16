@@ -51,14 +51,37 @@ interface EnetTransport {
     }
 }
 
+/** How the phone reaches the car's DoIP gateway. See docs/RESEARCH.md. */
+enum class EnetMode {
+    /**
+     * DEFAULT. Plain TCP to an ENET-to-WiFi / ENET-to-TCP bridge sitting on the OBD ENET
+     * cable (the ediabaslib "ENET WiFi Adapter" pattern). Works on stock Android.
+     */
+    BRIDGE,
+
+    /**
+     * Best effort. Bind to a TRANSPORT_ETHERNET [android.net.Network]. Only works when the OS
+     * actually exposes the adapter (rooted / eth-named interface); stock Android skips CDC
+     * adapters that enumerate as `usb0`.
+     */
+    DIRECT,
+
+    /** In-app simulator, no hardware. */
+    DEMO,
+}
+
 /**
- * DoIP endpoint + addressing. Defaults are the community-standard BMW ENET values;
- * the research spec may refine these and the Settings screen can override them.
+ * DoIP endpoint + addressing. Field names pre-dating [mode] are unchanged; [demoMode]
+ * remains and forces [effectiveMode] to DEMO.
  */
 data class EnetConfig(
+    /**
+     * Gateway IP used when discovery finds nothing (DIRECT mode) -- see [DEFAULT_GATEWAY_IP].
+     * In BRIDGE mode [bridgeIp] is the fallback instead.
+     */
     val gatewayIp: String = DEFAULT_GATEWAY_IP,
     val doipPort: Int = DOIP_PORT,
-    /** Tester (phone) logical source address. */
+    /** Tester (phone) logical source address. 0x0E80 is the verified BMW tester address. */
     val sourceAddress: Int = DEFAULT_TESTER_ADDRESS,
     /** Gateway (ZGW) logical target address for routing activation. */
     val gatewayAddress: Int = DEFAULT_GATEWAY_ADDRESS,
@@ -66,11 +89,32 @@ data class EnetConfig(
     val responseTimeoutMs: Long = 5_000,
     /** When true, run against the in-app simulator instead of real hardware. */
     val demoMode: Boolean = false,
+    val mode: EnetMode = EnetMode.BRIDGE,
+    /** BRIDGE mode: IP of the ENET-WiFi bridge (typical value, editable in the UI). */
+    val bridgeIp: String = DEFAULT_BRIDGE_IP,
+    /** BRIDGE mode: TCP port of the bridge (DoIP passthrough => 13400). */
+    val bridgePort: Int = DEFAULT_BRIDGE_PORT,
+    /** Try UDP vehicle identification before falling back to the configured IP. */
+    val discoverGateway: Boolean = true,
+    val discoveryTimeoutMs: Long = 1_500,
+    /** DIRECT mode: how long to wait for an Ethernet Network before failing. */
+    val ethernetWaitMs: Long = 4_000,
 ) {
+    /** [mode], except that the legacy [demoMode] flag wins. */
+    val effectiveMode: EnetMode get() = if (demoMode) EnetMode.DEMO else mode
+
     companion object {
         const val DOIP_PORT = 13400
+
+        /**
+         * FALLBACK ONLY. 160.48.199.x is commonly cited in community posts but is UNCONFIRMED.
+         * Discovery (UDP vehicle identification) or Auto-IP (169.254.x.x) is preferred.
+         */
         const val DEFAULT_GATEWAY_IP = "160.48.199.99"
-        const val DEFAULT_TESTER_ADDRESS = 0x0E00
+        const val DEFAULT_TESTER_ADDRESS = 0x0E80
         const val DEFAULT_GATEWAY_ADDRESS = 0x0010
+        /** Typical ENET-WiFi bridge address. Not universal -- user-editable. */
+        const val DEFAULT_BRIDGE_IP = "192.168.16.254"
+        const val DEFAULT_BRIDGE_PORT = 13400
     }
 }
