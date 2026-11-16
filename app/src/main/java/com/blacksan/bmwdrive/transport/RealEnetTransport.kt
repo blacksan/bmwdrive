@@ -95,12 +95,13 @@ object DoipDiscovery {
 /**
  * Real DoIP transport (java.net sockets on Dispatchers.IO; no third-party libs).
  *
- *  - BRIDGE (default): TCP to an ENET-to-WiFi/TCP bridge. Reliable on stock Android.
- *  - DIRECT: best effort. Requests a TRANSPORT_ETHERNET Network and binds the process to
- *    it. Only works when Android exposes the adapter (rooted / `eth\d`-named interface);
- *    stock Android skips CDC adapters that enumerate as `usb0`. Fails with advice to use
- *    BRIDGE if no Ethernet Network appears. NOTE: bindProcessToNetwork routes ALL of the
- *    app's traffic over the (offline) car link until [disconnect].
+ *  - DIRECT (default): USB-C Ethernet tethering, no root. Requests a TRANSPORT_ETHERNET
+ *    Network (with NET_CAPABILITY_INTERNET removed, since the car link has no internet) and
+ *    binds the process to it -- the same approach BimmerLink uses. Works on a stock phone
+ *    whose kernel has the adapter's chipset driver. If the adapter isn't recognised, falls
+ *    back with advice to use BRIDGE. NOTE: bindProcessToNetwork routes ALL of the app's
+ *    traffic over the (offline) car link until [disconnect].
+ *  - BRIDGE: TCP to an ENET-to-WiFi/TCP bridge, for phones that don't bring up the adapter.
  *  - DEMO: not handled here; use [DemoEnetTransport].
  *
  * [context] is only needed for DIRECT mode (ConnectivityManager).
@@ -266,9 +267,10 @@ class RealEnetTransport(
         if (network == null) {
             runCatching { cm.unregisterNetworkCallback(cb) }
             throw DoipException(
-                "Android did not expose an Ethernet network within ${timeout} ms. USB-C CDC-Ethernet " +
-                    "adapters usually enumerate as usb0 and are ignored without root. Use BRIDGE mode " +
-                    "with an ENET-to-WiFi/TCP bridge instead.",
+                "Android did not expose an Ethernet network within ${timeout} ms. Check the ENET " +
+                    "cable is seated and the ignition is on; some phones need the USB Ethernet " +
+                    "enabled once under Settings. If this phone's kernel lacks the adapter's chipset " +
+                    "driver, use BRIDGE mode with an ENET-to-WiFi/TCP bridge instead.",
             )
         }
         synchronized(resourceLock) {

@@ -48,7 +48,7 @@ import kotlinx.coroutines.launch
 
 /** Holds form state and the transport so the link survives recomposition / tab switches. */
 class ConnectViewModel(app: Application) : AndroidViewModel(app) {
-    var mode by mutableStateOf(EnetMode.BRIDGE)
+    var mode by mutableStateOf(EnetMode.DIRECT)
     var bridgeIp by mutableStateOf(EnetConfig.DEFAULT_BRIDGE_IP)
     var bridgePort by mutableStateOf(EnetConfig.DEFAULT_BRIDGE_PORT.toString())
     var testerHex by mutableStateOf("0E80")
@@ -176,10 +176,10 @@ fun ConnectScreen() {
         }
         Text(
             when (vm.mode) {
-                EnetMode.BRIDGE -> "Phone joins the WiFi of an ENET-to-WiFi bridge plugged into the car's " +
-                    "OBD ENET cable. Reliable on stock Android."
-                EnetMode.DIRECT -> "Best effort: binds to a USB-C Ethernet network. Stock Android usually " +
-                    "does NOT bring up USB-C Ethernet adapters without root -- if it fails, use Bridge."
+                EnetMode.DIRECT -> "USB-C Ethernet tethering, no root -- the same way BimmerLink connects. " +
+                    "Plug the ENET cable into the phone; works if the phone supports the adapter's chipset."
+                EnetMode.BRIDGE -> "Fallback: phone joins the WiFi of an ENET-to-WiFi bridge on the car's " +
+                    "OBD ENET cable. Use if the phone won't bring up the USB-C adapter."
                 EnetMode.DEMO -> "Simulated car. No hardware needed."
             },
             style = MaterialTheme.typography.bodySmall,
@@ -252,10 +252,10 @@ fun ConnectScreen() {
 
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
             Text(
-                "Why a bridge? A plain USB-C ENET cable usually does not work directly on Android: the OS " +
-                    "only brings up interfaces named eth0/eth1, while USB Ethernet adapters appear as usb0 " +
-                    "and are ignored unless the phone is rooted. An ENET-to-WiFi bridge on the car's " +
-                    "ENET cable lets the phone talk plain TCP instead.",
+                "Direct vs bridge: most modern phones bring up a USB-C Ethernet adapter as a wired " +
+                    "network, and this app binds to it with no root (how BimmerLink works). If your phone " +
+                    "lacks the adapter's chipset driver and won't show the wired link, switch to Bridge " +
+                    "mode and put an ENET-to-WiFi bridge on the car's ENET cable instead.",
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(12.dp),
             )

@@ -2,14 +2,18 @@
 
 See docs/RESEARCH.md for what is verified vs unverified.
 
-## Bridge vs direct
-- **Bridge (default, recommended).** Plug an ENET-to-WiFi (or ENET-to-TCP) bridge into the OBD
-  ENET cable, join its WiFi from the phone, and connect in BRIDGE mode. The phone speaks plain
-  TCP to the bridge on port 13400. Typical bridge address: 192.168.16.254 (editable).
-- **Direct USB-C ENET cable.** Android only promotes interfaces named `eth0`/`eth1`; USB CDC
-  Ethernet adapters appear as `usb0` and are ignored without root. DIRECT mode tries to bind to
-  an Ethernet `Network` and fails with a pointer to BRIDGE mode if none appears within a few
-  seconds. Binding is process-wide while connected.
+## Direct vs bridge
+- **Direct (default, recommended).** Plug the USB-C ENET cable / adapter straight into the
+  phone. Modern Android brings the adapter up as a wired `TRANSPORT_ETHERNET` network and the
+  app binds to it with **no root** — the same path BimmerLink uses. DIRECT mode requests that
+  network (internet capability removed, since the car link is offline) and binds the process to
+  it while connected. Requirement: the phone's kernel has the adapter's chipset driver (common
+  ASIX / Realtek / CDC-ECM are widely supported); some phones need the wired link enabled once
+  in Settings.
+- **Bridge (fallback).** If the phone won't surface the USB-C adapter, plug an ENET-to-WiFi (or
+  ENET-to-TCP) bridge into the OBD ENET cable, join its WiFi, and connect in BRIDGE mode. The
+  phone then speaks plain TCP to the bridge on port 13400. Typical bridge address:
+  192.168.16.254 (editable).
 - **Demo.** Simulated car, no hardware.
 
 ## Addressing

@@ -31,6 +31,18 @@ What the **OBD** cable does **not** give you:
   **root** plus BMW's extracted **`oap-sdk`**, neither of which this app can provide.
   The Deploy tab is therefore gated behind an explicit precondition checklist.
 
+## Connecting the phone (no root)
+
+Default mode is **Direct** — plug the USB-C ENET cable / adapter straight into the phone.
+Modern Android brings the adapter up as a wired `TRANSPORT_ETHERNET` network and the app binds
+its sockets to it with **no root** (the same approach BimmerLink uses; the network request drops
+`NET_CAPABILITY_INTERNET` so the offline car link matches). The only requirement is that the
+phone's kernel has the adapter's chipset driver — common ASIX / Realtek / CDC-ECM controllers are
+widely supported, and some phones need the wired link enabled once in Settings.
+
+If a phone won't surface the adapter, switch to **Bridge** mode and put an ENET-to-WiFi/TCP
+bridge on the OBD ENET cable. See [`docs/ENET-SETUP.md`](docs/ENET-SETUP.md).
+
 ## Architecture
 
 ```

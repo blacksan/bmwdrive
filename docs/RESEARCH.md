@@ -2,16 +2,26 @@
 
 Legend: **[V]** verified, **[U]** unverified / community-sourced -- confirm on the car.
 
-## Android Ethernet reality
-- **[V]** Android will not bring up a USB-C CDC-Ethernet adapter as a usable network interface
-  without root. The OS only promotes interfaces matching `eth\d`; CDC adapters enumerate as
-  `usb0` and are skipped.
-- Consequence: the reliable transport is a **TCP bridge** (ENET-to-WiFi / ENET-to-TCP device on
-  the OBD ENET cable; the phone speaks plain TCP -- the ediabaslib "ENET WiFi Adapter" pattern).
-- Direct mode (`ConnectivityManager.requestNetwork(TRANSPORT_ETHERNET)` + `bindProcessToNetwork`)
-  only works on rooted / eth-named setups. Best effort.
+## Android Ethernet reality (corrected)
+- **[V]** Modern Android exposes a USB-C Ethernet adapter as a `TRANSPORT_ETHERNET`
+  `android.net.Network`, and an app can route its sockets over it **without root** via
+  `ConnectivityManager.requestNetwork(...)` + `bindProcessToNetwork(...)` (or
+  `network.socketFactory`). This is how BimmerLink and similar apps talk to BMW ENET over a
+  plain USB-C ENET cable / adapter. KEY detail: the request must **remove**
+  `NET_CAPABILITY_INTERNET`, because the car's diagnostic link has no internet and the default
+  request would never match.
+- **[U]** The one real requirement is a kernel driver for the adapter's chipset. The common
+  ASIX AX887xx, Realtek RTL815x and CDC-ECM/NCM controllers are widely included on mainstream
+  phones; some phones need the wired connection enabled once in Settings. Phones without the
+  driver simply won't surface the interface.
+- An earlier draft of this doc claimed Android ignores non-`eth\d` adapters without root. That
+  over-generalised an AOSP/embedded case and is **not** true for the mainstream USB-Ethernet
+  path — corrected here.
+- Fallback for unsupported phones: a **TCP bridge** (ENET-to-WiFi / ENET-to-TCP device on the
+  OBD ENET cable; the ediabaslib "ENET WiFi Adapter" pattern).
 
-The app supports three modes (`EnetMode`): **BRIDGE** (default), **DIRECT**, **DEMO**.
+The app supports three modes (`EnetMode`): **DIRECT** (default, USB-C ENET tethering, no root),
+**BRIDGE** (fallback), **DEMO**.
 
 ## DoIP (ISO 13400)
 - **[V]** Ports: TCP and UDP 13400.

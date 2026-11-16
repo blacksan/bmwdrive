@@ -54,17 +54,21 @@ interface EnetTransport {
 /** How the phone reaches the car's DoIP gateway. See docs/RESEARCH.md. */
 enum class EnetMode {
     /**
-     * DEFAULT. Plain TCP to an ENET-to-WiFi / ENET-to-TCP bridge sitting on the OBD ENET
-     * cable (the ediabaslib "ENET WiFi Adapter" pattern). Works on stock Android.
-     */
-    BRIDGE,
-
-    /**
-     * Best effort. Bind to a TRANSPORT_ETHERNET [android.net.Network]. Only works when the OS
-     * actually exposes the adapter (rooted / eth-named interface); stock Android skips CDC
-     * adapters that enumerate as `usb0`.
+     * DEFAULT. USB-C Ethernet "tethering" straight to the OBD ENET cable, no root — the
+     * same path BimmerLink and similar apps use. Requests a TRANSPORT_ETHERNET
+     * [android.net.Network] (with NET_CAPABILITY_INTERNET removed, since the car link has no
+     * internet) and binds the process to it. Works on a stock phone whose kernel includes the
+     * adapter's chipset driver (common ASIX AX887xx / Realtek RTL815x / CDC-ECM are widely
+     * present). If the adapter isn't recognised, fall back to [BRIDGE].
      */
     DIRECT,
+
+    /**
+     * Fallback. Plain TCP to an ENET-to-WiFi / ENET-to-TCP bridge sitting on the OBD ENET
+     * cable (the ediabaslib "ENET WiFi Adapter" pattern). Use when the phone doesn't bring up
+     * the USB-C Ethernet adapter natively.
+     */
+    BRIDGE,
 
     /** In-app simulator, no hardware. */
     DEMO,
@@ -89,7 +93,7 @@ data class EnetConfig(
     val responseTimeoutMs: Long = 5_000,
     /** When true, run against the in-app simulator instead of real hardware. */
     val demoMode: Boolean = false,
-    val mode: EnetMode = EnetMode.BRIDGE,
+    val mode: EnetMode = EnetMode.DIRECT,
     /** BRIDGE mode: IP of the ENET-WiFi bridge (typical value, editable in the UI). */
     val bridgeIp: String = DEFAULT_BRIDGE_IP,
     /** BRIDGE mode: TCP port of the bridge (DoIP passthrough => 13400). */
