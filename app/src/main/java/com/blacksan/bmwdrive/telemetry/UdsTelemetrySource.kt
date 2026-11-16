@@ -5,7 +5,9 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import com.blacksan.bmwdrive.uds.Dids
 import com.blacksan.bmwdrive.uds.EcuAddress
+import com.blacksan.bmwdrive.uds.ObdPid
 import com.blacksan.bmwdrive.uds.UdsClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -17,22 +19,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-
-/**
- * Data identifiers polled from the DME. The numeric values are PLACEHOLDERS
- * (they mirror OBD-II mode 01 PID numbers in the low byte) — refined by research.
- * The comms agent must reconcile them with the real BMW DME DIDs.
- */
-object TelemetryDids {
-    const val RPM = 0xF40C          // refined by research
-    const val SPEED = 0xF40D        // refined by research
-    const val COOLANT = 0xF405      // refined by research
-    const val OIL_TEMP = 0xF45C     // refined by research
-    const val INTAKE_TEMP = 0xF40F  // refined by research
-    const val BOOST = 0xF40B        // refined by research (manifold pressure)
-    const val THROTTLE = 0xF411     // refined by research
-    const val GEAR = 0xF4A4         // refined by research
-}
 
 /**
  * Pure payload decoders. Each takes the DATA bytes of a 0x22 response (DID echo
@@ -123,7 +109,7 @@ class SensorImu(
 }
 
 /**
- * Polls [client] with 0x22 reads against [dme] and fuses [imu] for g-forces.
+ * Polls [client] against [dme] (OBD-II PIDs for rpm/speed/coolant, UNVERIFIED 0x22 DIDs for the rest) and fuses [imu] for g-forces.
  * A failed read keeps the previous value for that signal for a few cycles, then
  * clears it to null so the UI shows "—" rather than stale data.
  */
@@ -141,22 +127,25 @@ class UdsTelemetrySource(
     private val lock = Any()
     private var job: Job? = null
 
-    private class Signal<T>(val did: Int, val decode: (ByteArray) -> T?) {
+    /** [pid] = standard OBD-II mode 01 PID tried first (null = DID only); [did] is the UNVERIFIED 0x22 fallback. */
+    private class Signal<T>(val did: Int, val decode: (ByteArray) -> T?, val pid: Int? = null) {
         var value: T? = null
         var missed = 0
     }
 
-    private val rpm = Signal(TelemetryDids.RPM, DidDecoders::rpm)
-    private val speed = Signal(TelemetryDids.SPEED, DidDecoders::speedKmh)
-    private val coolant = Signal(TelemetryDids.COOLANT, DidDecoders::tempC)
-    private val oil = Signal(TelemetryDids.OIL_TEMP, DidDecoders::tempC)
-    private val intake = Signal(TelemetryDids.INTAKE_TEMP, DidDecoders::tempC)
-    private val boost = Signal(TelemetryDids.BOOST, DidDecoders::pressureKpa)
-    private val throttle = Signal(TelemetryDids.THROTTLE, DidDecoders::throttlePct)
-    private val gear = Signal(TelemetryDids.GEAR, DidDecoders::gear)
+    private val rpm = Signal(Dids.RPM, DidDecoders::rpm, ObdPid.RPM)
+    private val speed = Signal(Dids.SPEED, DidDecoders::speedKmh, ObdPid.SPEED)
+    private val coolant = Signal(Dids.COOLANT, DidDecoders::tempC, ObdPid.COOLANT_TEMP)
+    private val oil = Signal(Dids.OIL_TEMP, DidDecoders::tempC)
+    private val intake = Signal(Dids.INTAKE_TEMP, DidDecoders::tempC)
+    private val boost = Signal(Dids.BOOST, DidDecoders::pressureKpa)
+    private val throttle = Signal(Dids.THROTTLE, DidDecoders::throttlePct)
+    private val gear = Signal(Dids.GEAR, DidDecoders::gear)
 
     private suspend fun <T> poll(s: Signal<T>) {
-        val bytes = client.readDataById(dme, s.did).getOrNull()
+        // Prefer the standard OBD-II PID (same scaling as the DID decoders); fall back to the DID read.
+        val bytes = s.pid?.let { client.readObdPid(dme, it).getOrNull() }
+            ?: client.readDataById(dme, s.did).getOrNull()
         val decoded = bytes?.let(s.decode)
         if (decoded != null) {
             s.value = decoded
