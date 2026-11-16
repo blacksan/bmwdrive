@@ -71,4 +71,10 @@ interface UdsClient {
 
     /** 0x22 — read one data identifier (raw bytes); telemetry maps these to signals. */
     suspend fun readDataById(ecu: EcuAddress, did: Int): Result<ByteArray>
+
+    /**
+     * OBD-II mode 01 read of [pid] (see [ObdPid]); returns the data bytes after `41 <pid>`.
+     * UNVERIFIED whether a G-series DME answers mode 01 over DoIP.
+     */
+    suspend fun readObdPid(ecu: EcuAddress, pid: Int): Result<ByteArray>
 }

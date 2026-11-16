@@ -3,6 +3,7 @@ package com.blacksan.bmwdrive.ui.screens.preview
 import com.blacksan.bmwdrive.uds.DiagSession
 import com.blacksan.bmwdrive.uds.EcuAddress
 import com.blacksan.bmwdrive.uds.FaultCode
+import com.blacksan.bmwdrive.uds.ObdPid
 import com.blacksan.bmwdrive.uds.UdsClient
 import kotlinx.coroutines.delay
 
@@ -11,7 +12,7 @@ val DemoEcuBook = listOf(
     EcuAddress(0x0012, "DME", "Digital Motor Electronics"),
     EcuAddress(0x0018, "EGS", "Transmission Control"),
     EcuAddress(0x0029, "DSC", "Dynamic Stability Control"),
-    EcuAddress(0x0063, "KOMBI", "Instrument Cluster"),
+    EcuAddress(0x0060, "KOMBI", "Instrument Cluster"),
     EcuAddress(0x0010, "ZGW", "Central Gateway"),
 )
 
@@ -43,6 +44,13 @@ class FakeUdsClient(
 
     override suspend fun readDataById(ecu: EcuAddress, did: Int): Result<ByteArray> =
         Result.failure(UnsupportedOperationException("FakeUdsClient has no DID data"))
+
+    override suspend fun readObdPid(ecu: EcuAddress, pid: Int): Result<ByteArray> = when (pid) {
+        ObdPid.RPM -> Result.success(byteArrayOf(0x25, 0x80.toByte()))        // 2400 rpm
+        ObdPid.SPEED -> Result.success(byteArrayOf(0x3C))                      // 60 km/h
+        ObdPid.COOLANT_TEMP -> Result.success(byteArrayOf(0x82.toByte()))           // 90 degC
+        else -> Result.failure(UnsupportedOperationException("FakeUdsClient has no PID 0x%02X".format(pid)))
+    }
 
     companion object {
         fun sampleFaults(): List<FaultCode> = listOf(

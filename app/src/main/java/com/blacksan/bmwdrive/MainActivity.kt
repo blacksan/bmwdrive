@@ -28,6 +28,12 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.blacksan.bmwdrive.settings.AppSettings
 import com.blacksan.bmwdrive.settings.SettingsRepository
 import com.blacksan.bmwdrive.telemetry.DemoTelemetrySource
+import com.blacksan.bmwdrive.telemetry.SensorImu
+import com.blacksan.bmwdrive.telemetry.UdsTelemetrySource
+import com.blacksan.bmwdrive.transport.ConnectionRegistry
+import com.blacksan.bmwdrive.uds.EcuAddress
+import com.blacksan.bmwdrive.uds.EcuAddressBook
+import com.blacksan.bmwdrive.uds.RealUdsClient
 import com.blacksan.bmwdrive.telemetry.TelemetrySource
 import com.blacksan.bmwdrive.ui.nav.Dashboards
 import com.blacksan.bmwdrive.ui.nav.Dest
@@ -49,16 +55,24 @@ import com.blacksan.bmwdrive.ui.theme.BmwDriveTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         setContent {
             // Settings persist in DataStore; theme/unit changes flow back through the repository.
             val repo = remember { SettingsRepository(applicationContext) }
             val settings by repo.settings.collectAsStateWithLifecycle(initialValue = AppSettings())
             val scope = rememberCoroutineScope()
-            // TODO: swap in UdsTelemetrySource / the real UdsClient when demo mode is off and the transport lands.
-            val telemetry = remember { DemoTelemetrySource() }
-            val udsClient = remember { FakeUdsClient() }
+            // Live link published by the Connect screen; real clients are used only when demo mode is off.
+            val transport by ConnectionRegistry.transport.collectAsStateWithLifecycle()
+            val context = LocalContext.current
+            val live = !settings.demoMode && transport != null
+            val udsClient: UdsClient = remember(transport, settings.demoMode) {
+                transport?.takeIf { !settings.demoMode }?.let { RealUdsClient(it) } ?: FakeUdsClient()
+            }
+            val telemetry: TelemetrySource = remember(udsClient) {
+                if (live) UdsTelemetrySource(udsClient, imu = SensorImu(context)) else DemoTelemetrySource()
+            }
+            val ecuBook = if (live) EcuAddressBook.all else DemoEcuBook
             BmwDriveTheme(theme = settings.theme) {
                 BmwDriveRoot(
                     theme = settings.theme,
@@ -67,6 +81,7 @@ class MainActivity : ComponentActivity() {
                     repository = repo,
                     telemetry = telemetry,
                     udsClient = udsClient,
+                    ecuBook = ecuBook,
                 )
             }
         }
@@ -81,6 +96,7 @@ private fun BmwDriveRoot(
     repository: SettingsRepository,
     telemetry: TelemetrySource,
     udsClient: UdsClient,
+    ecuBook: List<EcuAddress>,
 ) {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
@@ -121,7 +137,7 @@ private fun BmwDriveRoot(
             composable(Dashboards.DRAG) { DragScreen(theme, telemetry, back, settings.speedUnit) }
             composable(Dashboards.DYNO) { DynoScreen(theme, telemetry, back) }
             composable(Dashboards.WARMUP) { WarmUpScreen(theme, telemetry, back) }
-            composable(Dest.FAULTS.route) { FaultScannerScreen(udsClient, DemoEcuBook) }
+            composable(Dest.FAULTS.route) { FaultScannerScreen(udsClient, ecuBook) }
             composable(Dest.DEPLOY.route) { DeployScreen() }
             composable(Dest.SETTINGS.route) {
                 SettingsScreen(theme = theme, onThemeChange = onThemeChange, repository = repository)

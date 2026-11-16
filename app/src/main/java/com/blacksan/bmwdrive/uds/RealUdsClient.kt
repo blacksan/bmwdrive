@@ -102,10 +102,10 @@ class RealUdsClient(
 
     /**
      * OBD-II mode 01 read (e.g. [ObdPid.RPM]); returns data bytes after `41 <pid>`.
-     * Sent physically to [ecu] (default DME). Functional addressing (CAN 0x7DF) has no
+     * Sent physically to [ecu] (typically the DME). Functional addressing (CAN 0x7DF) has no
      * confirmed DoIP equivalent on BMW -- UNVERIFIED whether the DME answers mode 01 over DoIP.
      */
-    suspend fun readObdPid(pid: Int, ecu: EcuAddress = EcuAddressBook.DME): Result<ByteArray> =
+    override suspend fun readObdPid(ecu: EcuAddress, pid: Int): Result<ByteArray> =
         request(ecu, byteArrayOf(0x01, pid.toByte())).mapCatching { r ->
             if (r.size < 2 || (r[1].toInt() and 0xFF) != pid) throw UdsProtocolException("PID echo mismatch")
             r.copyOfRange(2, r.size)
@@ -162,15 +162,4 @@ object ObdPid {
     const val COOLANT_TEMP = 0x05 // A - 40 degC
     const val RPM = 0x0C          // (256*A + B) / 4
     const val SPEED = 0x0D        // A km/h
-}
-
-/**
- * CANDIDATE data identifiers for 0x22 reads. There is NO verified B48 DID list.
- * None of these are authoritative; confirm each on the car before trusting it.
- * Note: SOME/IP high-rate telemetry is NOT reachable over the OBD/ENET gateway.
- */
-object CandidateDids {
-    const val VIN = 0xF190              // UNVERIFIED -- confirm on car (ISO 14229 standard VIN DID)
-    const val ECU_SW_VERSION = 0xF189   // UNVERIFIED -- confirm on car (ISO 14229 standard)
-    const val ACTIVE_SESSION = 0xF186   // UNVERIFIED -- confirm on car (ISO 14229 standard)
 }

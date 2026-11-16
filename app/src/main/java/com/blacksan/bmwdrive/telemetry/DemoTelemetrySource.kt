@@ -70,7 +70,9 @@ object DemoDrive {
             else -> 0.0
         }
         val slalom = if (x in 45.0..75.0) 1.1 * sin(2 * PI * (x - 45.0) / 6.0) else 0.0
-        val boost = (throttle / 100.0 * 140.0 * min(1.0, (rpm - 1500) / 2500.0)).coerceAtLeast(0.0)
+        val gaugeBoost = (throttle / 100.0 * 140.0 * min(1.0, (rpm - 1500) / 2500.0)).coerceAtLeast(0.0)
+        // boostKpa is ABSOLUTE manifold pressure (as a real OBD read returns); a boost gauge should display value - 100 for gauge pressure.
+        val boost = 30.0 + gaugeBoost * 110.0 / 140.0
         val coolant = 30.0 + 62.0 * (1 - exp(-warmupSec / 150.0))
         val oil = 22.0 + 90.0 * (1 - exp(-warmupSec / 300.0))
         return VehicleState(
@@ -78,7 +80,7 @@ object DemoDrive {
             speedKmh = v.toFloat(),
             coolantC = coolant.toFloat(),
             oilC = oil.toFloat(),
-            intakeC = (28.0 + boost * 0.08).toFloat(),
+            intakeC = (28.0 + gaugeBoost * 0.08).toFloat(),
             boostKpa = boost.toFloat(),
             throttlePct = throttle.toFloat(),
             gear = if (v < 1.0) 1 else gear,

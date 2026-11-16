@@ -52,7 +52,7 @@ fun DashboardsScreen(theme: AppTheme, onOpen: (String) -> Unit = {}) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            items(entries) { e ->
+            items(entries, key = { it.route }) { e ->
                 Card(Modifier.fillMaxWidth().heightIn(min = 140.dp).clickable { onOpen(e.route) }) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(e.icon, contentDescription = null, tint = accents.primary, modifier = Modifier.padding(bottom = 4.dp))
